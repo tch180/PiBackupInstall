@@ -6,6 +6,11 @@ read -p "Enter your email address: " github_email
 # Generate SSH key
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_rsa -C "$github_email"
 
+# add the SSH key to the ssh-agent
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/github_rsa
+
+
 # Display the public key
 cat ~/.ssh/github_rsa.pub
 
@@ -44,7 +49,7 @@ if [ ! -d ".git" ]; then
     git init
     git remote add origin "git@github.com:\$GITHUB_USER/\$GITHUB_REPO.git"
     git branch -M main
-    
+
 fi
 
 # Add and commit the backup
