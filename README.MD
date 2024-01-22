@@ -10,7 +10,11 @@ Follow these steps to use the script:
 
 2. Download the script:
 
-   $ wget https://example.com/path/to/script.sh
+   $ ```wget https://github.com/tch180/PiBackupInstall/archive/refs/tags/V0.1.zip```
+
+   or for mac 
+   
+   ```curl -L0 https://github.com/tch180/PiBackupInstall/archive/refs/tags/V0.1.tar.gz ```
 
 3. Make the script executable:
 
