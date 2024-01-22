@@ -132,7 +132,7 @@ fi
 echo "Scheduling the backup script to run every Friday at 12 noon"
 (crontab -l ; echo "0 12 * * 5 ~/backup.sh") | crontab -
 
-# Schedule the SSH key generation and upload script to run every 3 days at 1 PM
+# Schedule backup script to run every 3 days at 1 PM
 echo "Scheduling the backup script to run every 3 days"
 (crontab -l ; echo "0 13 */3 * * ~/backup.sh") | crontab -
 
