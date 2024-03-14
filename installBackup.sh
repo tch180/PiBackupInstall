@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Ask the user for their email address
-read -p "Enter your email address: " github_email 
+read -p "Enter your email address: " github_email
 
 # Generate SSH key
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_rsa -C "$github_email"
@@ -23,14 +23,20 @@ echo "4. Click 'New SSH key' and paste the copied key into the 'Key' field."
 echo "5. Give the key a title (e.g., 'Raspberry Pi SSH Key')."
 echo "6. Click 'Add SSH key' to save it."
 
+
+# Append ssh-agent startup commands to ~/.bashrc
+echo "Adding ssh-agent startup commands to ~/.bashrc"
+echo -e "\n# Start ssh-agent and add the SSH key\neval \"\$(ssh-agent -s)\"\nssh-add ~/.ssh/github_rsa" >> ~/.bashrc
+
+# Inform the user
+echo "ssh-agent startup commands added to ~/.bashrc. Changes will take effect in the next session."
+
 # Create the backup.sh script
 echo "Creating the backup.sh script"
 cat <<EOF > ~/backup.sh
 #!/bin/bash
+read -p "Enter the Source dir " SOURCE_DIR
 
-# Paths
-SOURCE_DIR="/path/to/your/source/directory"
-BACKUP_DIR="/path/to/your/backup/directory"
 
 # Commit message
 COMMIT_MESSAGE="Backup on \$(date +'%Y-%m-%d %H:%M:%S')"
@@ -38,11 +44,6 @@ COMMIT_MESSAGE="Backup on \$(date +'%Y-%m-%d %H:%M:%S')"
 # Change to the source directory
 cd \$SOURCE_DIR || exit 1
 
-# Create a backup archive
-tar czf \$BACKUP_DIR/backup-\$(date +'%Y%m%d%H%M%S').tar.gz .
-
-# Change to the backup directory
-cd \$BACKUP_DIR || exit 1
 
 # Initialize Git repository if it's not already initialized
 if [ ! -d ".git" ]; then
@@ -57,12 +58,11 @@ git add .
 git commit -m "\$COMMIT_MESSAGE"
 
 # Push the backup to GitHub
-git push -u origin master
+git push -u origin main
 EOF
 
 chmod +x ~/backup.sh
 
-read -p "Enter your source directory: " SOURCE_DIR
 
 # Create .gitignore file
 echo "Creating .gitignore file"
@@ -75,7 +75,14 @@ cat <<EOF > .gitignore
 *.key
 known_hosts
 .gitignore
-
+# Dynamically find directories with a .git directory and add them to .gitignore
+find "$SOURCE_DIR" -type d -name ".git" | while read git_dir; do
+  # Exclude the top-level .git directory
+  if [ "$git_dir" != "$SOURCE_DIR/.git" ]; then
+    relative_path=$(echo "${git_dir}" | sed "s|$SOURCE_DIR/||g" | sed 's|/.git$||')
+    echo "$relative_path/" >> "$GITIGNORE_FILE"
+  fi
+done
 # Ignore system-specific directories
 /boot/
 /dev/
