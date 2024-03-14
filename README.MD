@@ -50,6 +50,8 @@ Important Notes:
 
 - The script will automatically restart the Raspberry Pi after completing the setup.
 
+- The repo must be set to private for this script to work correctly.
+
 Contributions:
 
 Contributions and improvements to this script are welcome. Feel free to create pull request. 
