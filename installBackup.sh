@@ -1,19 +1,15 @@
 #!/bin/bash
 
-# Ask the user for their email address
+# Prompt for user's email and generate an SSH key for GitHub authentication
 read -p "Enter your email address: " github_email
-
-# Generate SSH key
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_rsa -C "$github_email"
 
-# add the SSH key to the ssh-agent
+# Start the ssh-agent and add the generated SSH key
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/github_rsa
 
-
-# Display the public key
+# Display the SSH public key and instruct the user to add it to their GitHub account
 cat ~/.ssh/github_rsa.pub
-
 echo "Copy the above SSH public key and add it to your GitHub account."
 echo "Follow these steps:"
 echo "1. Log in to your GitHub account."
@@ -24,135 +20,72 @@ echo "5. Give the key a title (e.g., 'Raspberry Pi SSH Key')."
 echo "6. Click 'Add SSH key' to save it."
 
 
-# Append ssh-agent startup commands to ~/.bashrc
-echo "Adding ssh-agent startup commands to ~/.bashrc"
-echo -e "\n# Start ssh-agent and add the SSH key\neval \"\$(ssh-agent -s)\"\nssh-add ~/.ssh/github_rsa" >> ~/.bashrc
+# Append ssh-agent startup commands to ~/.bashrc for automatic agent startup
+echo "Appending ssh-agent startup commands to ~/.bashrc"
+echo -e "\n# Auto-start ssh-agent and add SSH key\neval \"\$(ssh-agent -s)\"\nssh-add ~/.ssh/github_rsa" >> ~/.bashrc
+echo "ssh-agent startup commands added to ~/.bashrc. They will take effect in the next session."
 
-# Inform the user
-echo "ssh-agent startup commands added to ~/.bashrc. Changes will take effect in the next session."
-
-# Create the backup.sh script
+# Create the backup script
 echo "Creating the backup.sh script"
-cat <<EOF > ~/backup.sh
+cat <<'EOF' > ~/backup.sh
 #!/bin/bash
-read -p "Enter the Source dir " SOURCE_DIR
-
-
-# Commit message
+read -p "Enter the Source dir: " SOURCE_DIR
 COMMIT_MESSAGE="Backup on \$(date +'%Y-%m-%d %H:%M:%S')"
+cd "\$SOURCE_DIR" || exit 1
 
-# Change to the source directory
-cd \$SOURCE_DIR || exit 1
-
-
-# Initialize Git repository if it's not already initialized
 if [ ! -d ".git" ]; then
     git init
     git remote add origin "git@github.com:\$GITHUB_USER/\$GITHUB_REPO.git"
     git branch -M main
-
 fi
 
-# Add and commit the backup
 git add .
 git commit -m "\$COMMIT_MESSAGE"
-
-# Push the backup to GitHub
 git push -u origin main
 EOF
-
 chmod +x ~/backup.sh
+echo "Backup script created and made executable."
 
-
-# Create .gitignore file
-echo "Creating .gitignore file"
-
-# Define the content of the .gitignore file
-cat <<EOF > .gitignore
-# Ignore SSH keys and configuration files
-.ssh/
-*.pub
-*.key
-known_hosts
-.gitignore
-# Dynamically find directories with a .git directory and add them to .gitignore
+# Create or append to .gitignore, dynamically adding directories with a .git directory
+echo "Creating or updating .gitignore file"
+GITIGNORE_FILE=".gitignore"
+{
+echo ".ssh/"
+echo "*.pub"
+echo "*.key"
+echo "known_hosts"
+echo ".gitignore"
+# Find and ignore directories containing a .git folder
 find "$SOURCE_DIR" -type d -name ".git" | while read git_dir; do
-  # Exclude the top-level .git directory
-  if [ "$git_dir" != "$SOURCE_DIR/.git" ]; then
-    relative_path=$(echo "${git_dir}" | sed "s|$SOURCE_DIR/||g" | sed 's|/.git$||')
-    echo "$relative_path/" >> "$GITIGNORE_FILE"
-  fi
+    if [ "$git_dir" != "$SOURCE_DIR/.git" ]; then
+        relative_path=\$(echo "\${git_dir}" | sed "s|\$SOURCE_DIR/||" | sed 's|/.git||')
+        echo "\$relative_path/"
+    fi
 done
-# Ignore system-specific directories
-/boot/
-/dev/
-/media/
-/mnt/
-/proc/
-/sys/
-/tmp/
+echo "/boot/"
+echo "/dev/"
+# Add other patterns here
+} > "$GITIGNORE_FILE"
+echo ".gitignore file created/updated."
 
-# Ignore package manager cache and installation files
-/var/
-/etc/
-lib/modules/
-*.img
-
-# Ignore log files
-*.log
-
-# Ignore swap files
-*~
-
-# Ignore user-specific files and directories
-/home/
-/root/
-
-# Ignore compiled code or binary files
-*.o
-*.a
-*.out
-*.bin
-
-# Ignore project-specific files and directories (customize as needed)
-/node_modules/
-.DS_Store
-*.swp
-EOF
-
-# Check if a Git repository exists in the source directory
+# Check and initialize Git in the source directory if necessary
 if [ ! -d "$SOURCE_DIR/.git" ]; then
     echo "Initializing a Git repository in $SOURCE_DIR"
     read -p "Enter your GitHub username: " GITHUB_USER
     read -p "Enter your GitHub repository name: " GITHUB_REPO
-
-    # Initialize Git repository
-    cd "$SOURCE_DIR" || exit 1
+    cd "$SOURCE_DIR" || exit
     git init
     git remote add origin "git@github.com:$GITHUB_USER/$GITHUB_REPO.git"
     git branch -M main
 fi
 
-## create and add cron jobs
+# Set up cron jobs for automated backups
+echo "Setting up cron jobs for automated backups"
+(crontab -l 2>/dev/null; echo "0 12 * * 5 ~/backup.sh") | crontab -
+(crontab -l 2>/dev/null; echo "0 13 */3 * * ~/backup.sh") | crontab -
+echo "Cron jobs scheduled."
 
-# Schedule the backup script every Friday at 12 noon
-echo "Scheduling the backup script to run every Friday at 12 noon"
-(crontab -l ; echo "0 12 * * 5 ~/backup.sh") | crontab -
-
-# Schedule backup script to run every 3 days at 1 PM
-echo "Scheduling the backup script to run every 3 days"
-(crontab -l ; echo "0 13 */3 * * ~/backup.sh") | crontab -
-
-# Enable and start cron service
-sudo systemctl enable cron.service
-sudo systemctl start cron.service
-
-if [ $? -eq 0 ]; then
-    echo "Cron service started successfully"
-else
-    echo "Cron service failed to start"
-fi
-
-# Restart the system
-echo "Restarting the system..."
+# Enable and start the cron service, then reboot the system
+sudo systemctl enable cron.service && sudo systemctl start cron.service && echo "Cron service started successfully" || echo "Failed to start cron service"
+echo "Rebooting the system for changes to take full effect..."
 sudo reboot
