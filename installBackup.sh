@@ -26,10 +26,23 @@ echo -e "\n# Auto-start ssh-agent and add SSH key\neval \"\$(ssh-agent -s)\"\nss
 echo "ssh-agent startup commands added to ~/.bashrc. They will take effect in the next session."
 
 # Create the backup script
-echo "Creating the backup.sh script"
+echo "Creating the backup.sh script..."
 cat <<'EOF' > ~/backup.sh
 #!/bin/bash
-read -p "Enter the Source dir: " SOURCE_DIR
+
+CONFIG_FILE="$HOME/backup.conf"
+
+# Check if the configuration file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    # Configuration file does not exist, prompt the user for the source directory
+    read -p "Enter the Source dir: " SOURCE_DIR
+    # Save the source directory to the configuration file
+    echo "SOURCE_DIR='$SOURCE_DIR'" > "$CONFIG_FILE"
+else
+    # Configuration file exists, source it to read the saved source directory
+    source "$CONFIG_FILE"
+fi
+
 COMMIT_MESSAGE="Backup on \$(date +'%Y-%m-%d %H:%M:%S')"
 cd "\$SOURCE_DIR" || exit 1
 
