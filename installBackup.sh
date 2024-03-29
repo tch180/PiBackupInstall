@@ -30,6 +30,9 @@ echo "Creating the backup.sh script..."
 cat <<'EOF' > ~/backup.sh
 #!/bin/bash
 
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/github_rsa 
+
 CONFIG_FILE="$HOME/backup.conf"
 
 # Check if the configuration file exists
@@ -69,10 +72,10 @@ echo "*.key"
 echo "known_hosts"
 echo ".gitignore"
 # Find and ignore directories containing a .git folder
-find "$SOURCE_DIR" -type d -name ".git" | while read git_dir; do
+find "$SOURCE_DIR" -type d -name ".git" | while IFS= read -r git_dir; do
     if [ "$git_dir" != "$SOURCE_DIR/.git" ]; then
-        relative_path=\$(echo "\${git_dir}" | sed "s|\$SOURCE_DIR/||" | sed 's|/.git||')
-        echo "\$relative_path/"
+        relative_path=$(echo "$git_dir" | sed "s|$SOURCE_DIR/||" | sed 's|/.git||')
+        echo "$relative_path/"
     fi
 done
 echo "/boot/"
