@@ -10,7 +10,7 @@ Follow these steps to use the script:
 
 2. Download the script:
 
-   $ ```wget https://github.com/tch180/PiBackupInstall/archive/refs/tags/V0.1.zip```
+   $ ```wget https://github.com/tch180/PiBackupInstall/archive/refs/tags/V0.2.zip```
 
    or for mac 
    
