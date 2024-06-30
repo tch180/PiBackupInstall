@@ -46,17 +46,17 @@ else
     source "$CONFIG_FILE"
 fi
 
-COMMIT_MESSAGE="Backup on \$(date +'%Y-%m-%d %H:%M:%S')"
+COMMIT_MESSAGE="Backup on $(date +'%Y-%m-%d %H:%M:%S')"
 cd "\$SOURCE_DIR" || exit 1
 
 if [ ! -d ".git" ]; then
     git init
-    git remote add origin "git@github.com:\$GITHUB_USER/\$GITHUB_REPO.git"
+    git remote add origin "git@github.com:$GITHUB_USER/$GITHUB_REPO.git"
     git branch -M main
 fi
 
 git add .
-git commit -m "\$COMMIT_MESSAGE"
+git commit -m "$COMMIT_MESSAGE"
 git push -u origin main
 EOF
 chmod +x ~/backup.sh
