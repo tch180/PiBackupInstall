@@ -15,18 +15,18 @@ Follow these steps to use the script:
    or for mac 
    
    ```curl -L0 https://github.com/tch180/PiBackupInstall/archive/refs/tags/V0.1.tar.gz ```
-
-3. Make the script executable:
+4. cd into the PiInstallBackup directory. 
+5. Make the script executable:
 
      ``` chmod +x installBackup.sh``` 
 
-4. Run the script:
+6. Run the script:
 
     ```$ ./installBackup.sh``` 
 
    The script will guide you through the setup process, asking for your GitHub email, source directory, and other configuration options.
 
-5. After the script completes, it will have generated an SSH key, created a .gitignore file, set up a Git repository, scheduled backup tasks, and restarted the system.
+7. After the script completes, it will have generated an SSH key, created a .gitignore file, set up a Git repository, scheduled backup tasks, and restarted the system.
 
 Configuration:
 
