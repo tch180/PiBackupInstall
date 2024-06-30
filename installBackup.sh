@@ -1,44 +1,15 @@
 #!/bin/bash
 
-# Set home directory and Git repository variables
-HOME_DIR="$HOME"
-GIT_REPO_DIR="$HOME_DIR/.git"
+# Prompt for user's email and generate an SSH key for GitHub authentication
+read -p "Enter your email address: " github_email
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_rsa -C "$github_email"
 
-# Check if .git directory exists
-if [ ! -d "$GIT_REPO_DIR" ]; then
-  echo "Initializing Git repository in $HOME_DIR..."
-  git init --bare "$GIT_REPO_DIR"
-else
-  echo "Git repository already exists in $HOME_DIR."
-fi
+# Start the ssh-agent and add the generated SSH key
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/github_rsa
 
-# Find subdirectories with existing Git repositories 
-git submodule foreach --quiet 'echo $path' > /tmp/git_subdirs
-
-# Loop through subdirectories and add them to .gitignore 
-while IFS= read -r subdir; do
-  if [ ! -z "$subdir" ] && [ "$subdir" != ".git" ]; then
-    grep -q "^$subdir\$" "$HOME_DIR/.gitignore" || echo "$subdir" >> "$HOME_DIR/.gitignore"
-  fi
-done < /tmp/git_subdirs
-
-# Clean up temporary file 
-rm /tmp/git_subdirs
-
-echo "Done setting up Git in your home directory!"
-
-echo ""
-echo "**Important Security Notice:**"
-echo "Automating SSH key generation is a security risk! It's highly recommended to generate SSH keys manually for better control."
-
-echo ""
-# Commented-out line for automated key generation (not recommended)
-echo "Generating SSH key pair..."
-ssh-keygen -t rsa -b 2048 -N "" -f "$HOME_DIR/.ssh/id_rsa"
-
-
-echo ""
-echo "Once you've generated your keys, you'll need to add the public key to your GitHub account."
+# Display the SSH public key and instruct the user to add it to their GitHub account
+cat ~/.ssh/github_rsa.pub
 echo "Copy the above SSH public key and add it to your GitHub account."
 echo "Follow these steps:"
 echo "1. Log in to your GitHub account."
@@ -49,60 +20,88 @@ echo "5. Give the key a title (e.g., 'Raspberry Pi SSH Key')."
 echo "6. Click 'Add SSH key' to save it."
 
 
-# Enter the remote Git repository URL (replace with your actual URL)
-echo ""
-read -p "Enter the remote Git repository URL (including username): " remote_repo_url
+# Append ssh-agent startup commands to ~/.bashrc for automatic agent startup
+echo "Appending ssh-agent startup commands to ~/.bashrc"
+echo -e "\n# Auto-start ssh-agent and add SSH key\neval \"\$(ssh-agent -s)\"\nssh-add ~/.ssh/github_rsa" >> ~/.bashrc
+echo "ssh-agent startup commands added to ~/.bashrc. They will take effect in the next session."
 
-# Backup script content
-backup_script=$(cat <<'EOF'
+# Create the backup script
+echo "Creating the backup.sh script..."
+cat <<'EOF' > ~/backup.sh
 #!/bin/bash
 
-# Set home directory and Git repository variables
-HOME_DIR="$HOME"
-GIT_REPO_DIR="$HOME_DIR/.git"
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/github_rsa 
 
-# Timestamp for backup filename
-timestamp=$(date +%Y-%m-%d_%H-%M-%S)
+CONFIG_FILE="$HOME/backup.conf"
 
-# Add all untracked files and directories (excluding .git) to Git
-git add -A --ignore-missing --force "$HOME_DIR"
-
-# Commit changes with a descriptive message
-git commit -m "Daily backup - $timestamp"
-
-# Push changes to remote repository
-git push -u origin main
-
-echo "Backup completed successfully!"
-
-EOF
-)
-
-# Check if 'git' command exists
-if ! command -v git &> /dev/null; then
-  echo "Error: 'git' command not found. Please install it for backup functionality."
-  exit 1
+# Check if the configuration file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    # Configuration file does not exist, prompt the user for the source directory
+    read -p "Enter the Source dir: " SOURCE_DIR
+    # Save the source directory to the configuration file
+    echo "SOURCE_DIR='$SOURCE_DIR'" > "$CONFIG_FILE"
+else
+    # Configuration file exists, source it to read the saved source directory
+    source "$CONFIG_FILE"
 fi
 
-# Create a file named 'backup_to_github.sh' in the same directory
-echo "$backup_script" > "$HOME_DIR/backup_to_github.sh"
+COMMIT_MESSAGE="Backup on \$(date +'%Y-%m-%d %H:%M:%S')"
+cd "\$SOURCE_DIR" || exit 1
 
-# Make the backup script executable
-chmod +x "$HOME_DIR/backup_to_github.sh"
+if [ ! -d ".git" ]; then
+    git init
+    git remote add origin "git@github.com:\$GITHUB_USER/\$GITHUB_REPO.git"
+    git branch -M main
+fi
 
-# Daily cron job schedule
-daily_cron_schedule="0 0 * * *"  # Every day at midnight
+git add .
+git commit -m "\$COMMIT_MESSAGE"
+git push -u origin main
+EOF
+chmod +x ~/backup.sh
+echo "Backup script created and made executable."
 
-# Create cron job entry for daily backup
-crontab -l > /tmp/cronjobs
-echo "$daily_cron_schedule $HOME_DIR/backup_to_github.sh $remote_repo_url" >> /tmp/cronjobs
-crontab /tmp/cronjobs
-rm /tmp/git_subdirs
+# Create or append to .gitignore, dynamically adding directories with a .git directory
+echo "Creating or updating .gitignore file"
+GITIGNORE_FILE=".gitignore"
+{
+echo "*.ssh/"
+echo "*.pub"
+echo "*.key"
+echo "known_hosts"
+echo ".gitignore"
+# Find and ignore directories containing a .git folder
+find "$SOURCE_DIR" -type d -name ".git" | while IFS= read -r git_dir; do
+    if [ "$git_dir" != "$SOURCE_DIR/.git" ]; then
+        relative_path=$(echo "$git_dir" | sed "s|$SOURCE_DIR/||" | sed 's|/.git||')
+        echo "$relative_path/"
+    fi
+done
+echo "/boot/"
+echo "/dev/"
+# Add other patterns here
+} > "$GITIGNORE_FILE"
+echo ".gitignore file created/updated."
 
-echo "Successfully added cron job for daily backups to GitHub."
+# Check and initialize Git in the source directory if necessary
+if [ ! -d "$SOURCE_DIR/.git" ]; then
+    echo "Initializing a Git repository in $SOURCE_DIR"
+    read -p "Enter your GitHub username: " GITHUB_USER
+    read -p "Enter your GitHub repository name: " GITHUB_REPO
+    cd "$SOURCE_DIR" || exit
+    git init
+    git remote add origin "git@github.com:$GITHUB_USER/$GITHUB_REPO.git"
+    git branch -M main
+fi
 
-echo ""
-echo "**Important:**"
-echo "* This script creates a backup script named 'backup_to_github.sh' in your home directory."
-echo "* Make sure this script is executable (use 'chmod +x $HOME_DIR/backup_to_github.sh')"
-echo "* This script creates a cron job that runs with your user permissions. Ensure your user has read access to the files being backed up."
+# Set up cron jobs for automated backups
+echo "Setting up cron jobs for automated backups"
+(crontab -l 2>/dev/null; echo "0 12 * * 5 ~/backup.sh") | crontab -
+(crontab -l 2>/dev/null; echo "0 13 */3 * * ~/backup.sh") | crontab -
+echo "Cron jobs scheduled."
+
+# Enable and start the cron service, then reboot the system
+sudo systemctl enable cron.service && sudo systemctl start cron.service && echo "Cron service started successfully" || echo "Failed to start cron service"
+echo "Rebooting the system for changes to take full effect..."
+sudo reboot
