@@ -33,6 +33,9 @@ show_menu() {
 generate_ssh_key() {
     read -p "Enter your email address: " github_email
     ssh-keygen -t rsa -b 4096 -f ~/.ssh/github_rsa -C "$github_email"
+    git config --global user.email "$github_email"
+    read -p "Enter your GitHub username: " github_username
+    git config --global user.name "$github_username"
 }
 
 # Function to start the ssh-agent and add the generated SSH key
@@ -94,7 +97,8 @@ cd "$SOURCE_DIR" || exit 1
 
 if [ ! -d ".git" ]; then
     git init
-    git remote add origin "git@github.com:$GITHUB_USER/$GITHUB_REPO.git"
+    read -p "Enter your GitHub ssh address: " GITHUB_REPO
+    git remote add origin GITHUB_REPO
     git branch -M main
 fi
 
