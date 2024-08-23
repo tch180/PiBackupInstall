@@ -10,11 +10,11 @@ Follow these steps to use the script:
 
 2. Download the script:
 
-   $ `wget https://github.com/tch180/PiBackupInstall/archive/refs/tags/V0.6.zip`
+   $ `wget https://github.com/tch180/PiBackupInstall/archive/refs/tags/V0.7.zip`
 
    or for mac
 
-   `curl -L0 https://github.com/tch180/PiBackupInstall/archive/refs/tags/V0.6.tar.gz `
+   `curl -L0 https://github.com/tch180/PiBackupInstall/archive/refs/tags/V0.7.tar.gz `
 
 3. unzip the file.
 4. cd into the PiInstallBackup directory.
