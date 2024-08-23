@@ -66,21 +66,27 @@ create_backup_script() {
     echo "Creating the backup.sh script..."
     cat <<'EOF' > ~/backup.sh
 #!/bin/bash
+cd /home/pi || { echo "Failed to navigate to /home/pi"; exit 1; }
 
 eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/github_rsa 
+ssh-add ~/.ssh/github_rsa
 
 CONFIG_FILE="$HOME/backup.conf"
+
+echo $CONFIG_FILE
 
 # Check if the configuration file exists
 if [ ! -f "$CONFIG_FILE" ]; then
     # Configuration file does not exist, prompt the user for the source directory
     read -p "Enter the Source dir: " SOURCE_DIR
     # Save the source directory to the configuration file
+        echo "MY SOURCE IS :$SOURCE_DIR"
     echo "SOURCE_DIR='$SOURCE_DIR'" > "$CONFIG_FILE"
 else
     # Configuration file exists, source it to read the saved source directory
-    source "$CONFIG_FILE"
+# echo "MY HOME IS : $HOME"
+    source="$HOME/backup.conf"
+
 fi
 
 COMMIT_MESSAGE="Backup on $(date +'%Y-%m-%d %H:%M:%S')"
@@ -92,9 +98,15 @@ if [ ! -d ".git" ]; then
     git branch -M main
 fi
 
+echo "Top-level directory: $(git rev-parse --show-toplevel)"
+
+echo "Adding Files"
 git add .
+echo "Commit message is : $COMMIT_MESSAGE"
 git commit -m "$COMMIT_MESSAGE"
-git push -u origin main
+echo "pushing to branch origin main"
+git push  origin main
+echo "Compelted Push"
 EOF
     chmod +x ~/backup.sh
     echo "Backup script created and made executable."
@@ -105,21 +117,21 @@ update_gitignore() {
     echo "Creating or updating .gitignore file"
     GITIGNORE_FILE=".gitignore"
     {
-    echo "*.ssh/"
-    echo "*.pub"
-    echo "*.key"
-    echo "known_hosts"
-    echo ".gitignore"
-    # Find and ignore directories containing a .git folder
-    find "$SOURCE_DIR" -type d -name ".git" | while IFS= read -r git_dir; do
-        if [ "$git_dir" != "$SOURCE_DIR/.git" ]; then
-            relative_path=$(echo "$git_dir" | sed "s|$SOURCE_DIR/||" | sed 's|/.git||')
-            echo "$relative_path/"
-        fi
-    done
-    echo "/boot/"
-    echo "/dev/"
-    # Add other patterns here
+        echo "*.ssh/"
+        echo "*.pub"
+        echo "*.key"
+        echo "known_hosts"
+        echo ".gitignore"
+        # Find and ignore directories containing a .git folder
+        find "$SOURCE_DIR" -type d -name ".git" | while IFS= read -r git_dir; do
+            if [ "$git_dir" != "$SOURCE_DIR/.git" ]; then
+                relative_path=$(echo "$git_dir" | sed "s|$SOURCE_DIR/||" | sed 's|/.git||')
+                echo "$relative_path/"
+            fi
+        done
+        echo "/boot/"
+        echo "/dev/"
+        # Add other patterns here
     } > "$GITIGNORE_FILE"
     echo ".gitignore file created/updated."
 }
